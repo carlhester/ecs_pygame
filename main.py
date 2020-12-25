@@ -1,5 +1,7 @@
 #!/usr/bin/python3 
 
+import pygame
+from pygame.locals import *
 
 class Entities:
     def __init__(self):
@@ -31,38 +33,64 @@ class Entities:
     def id_for_name(self, name):
         return self.ids.index(name)
 
-def main():
-    CM = ComponentManager()
-    entities = Entities()
-    
-    first = entities.add("first")
-    CM.addSizer(first, SizeComponent(10,10))
-   
-    second = entities.add()
-    CM.addSizer(second, SizeComponent(30,30))
-    CM.addPositioner(second, PositionComponent(120,230))
-    CM.addDrawer(second, DrawComponent())
-    
-    third = entities.add()
-    CM.addPositioner(third, PositionComponent(240,110))
-    CM.addMover(third, MoveComponent(15,5))
 
-    fourth = entities.add("fourth")
-    CM.addPositioner(fourth, PositionComponent(240,110))
-    CM.addDrawer(fourth, DrawComponent())
+class Game:
+    def init(self):
+        pygame.init()
+        self._running = True
+        self.CM = ComponentManager()
+        self.entities = Entities()
+        
+        first = self.entities.add("first")
+        self.CM.addSizer(first, SizeComponent(10,10))
+       
+        second = self.entities.add()
+        self.CM.addSizer(second, SizeComponent(30,30))
+        self.CM.addPositioner(second, PositionComponent(120,230))
+        self.CM.addDrawer(second, DrawComponent())
+        
+        third = self.entities.add()
+        self.CM.addPositioner(third, PositionComponent(240,110))
+        self.CM.addMover(third, MoveComponent(15,5))
 
-    print(CM.Positioners)
-    print(CM.Movers)
-    for e in entities.all_ids():
-        # draw is size + position + draw
-        if CM.hasSize(e) and CM.hasPosition(e) and CM.hasDraw(e):
-            DrawSystem(CM.getSize(e), CM.getPosition(e))
-        # move is position + move
-        if CM.hasMove(e) and CM.hasPosition(e):
-            MoveSystem(CM.getPosition(e), CM.getMove(e))
-    print(CM.Positioners)
-    print(CM.Movers)
+        fourth = self.entities.add("fourth")
+        self.CM.addPositioner(fourth, PositionComponent(240,110))
+        self.CM.addDrawer(fourth, DrawComponent())
 
+    def execute(self):
+        if self.init() == False:
+            self._running = False
+
+        while (self._running):
+            for event in pygame.event.get():
+                self.events(event)
+            self.update()
+            self.render()
+        self.cleanup()
+
+
+    def update(self):
+        for e in self.entities.all_ids():
+            # draw is size + position + draw
+            if self.CM.hasSize(e) and self.CM.hasPosition(e) and self.CM.hasDraw(e):
+                DrawSystem(self.CM.getSize(e), self.CM.getPosition(e))
+            # move is position + move
+            if self.CM.hasMove(e) and self.CM.hasPosition(e):
+                MoveSystem(self.CM.getPosition(e), self.CM.getMove(e))
+
+    def events(self, event):
+        if event.type == pygame.KEYDOWN:
+            print(event.type, event.key)
+            if event.key == pygame.K_q:
+                self._running = False
+        if event.type == pygame.QUIT:
+            self._running = False
+
+    def cleanup(self):
+        pygame.quit()
+
+    def render(self):
+        pass
 class DrawComponent:
     def __init__(self):
         pass
@@ -92,6 +120,9 @@ class ComponentManager:
     # Size
     def addSizer(self, entity_id, size_component):
         self.Sizers[entity_id] = size_component
+
+    def removeSizer(self, entity_id):
+        del self.Sizers[entity_id]
     
     def hasSize(self, entity_id):
         if entity_id in self.Sizers:
@@ -104,12 +135,18 @@ class ComponentManager:
     def addDrawer(self, entity_id, draw_component):
         self.Drawers[entity_id] = draw_component 
     
+    def removeDrawer(self, entity_id):
+        del self.Drawers[entity_id]
+    
     def hasDraw(self, entity_id):
         if entity_id in self.Drawers:
             return True
     # Move 
     def addMover(self, entity_id, move_component):
         self.Movers[entity_id] = move_component 
+    
+    def removeMover(self, entity_id):
+        del self.Movers[entity_id]
     
     def hasMove(self, entity_id):
         if entity_id in self.Movers:
@@ -122,6 +159,9 @@ class ComponentManager:
     def addPositioner(self, entity_id, pos_component):
         self.Positioners[entity_id] = pos_component
     
+    def removePositioner(self, entity_id):
+        del self.Positioners[entity_id]
+    
     def hasPosition(self, entity_id):
         if entity_id in self.Positioners:
             return True
@@ -130,7 +170,8 @@ class ComponentManager:
         return self.Positioners[entity_id]
     
 def DrawSystem(size_component, pos_component):
-    print("Drawing w: %s h: %s at x: %s y: %s" % (size_component.w, size_component.h, pos_component.x, pos_component.y))
+    #print("Drawing w: %s h: %s at x: %s y: %s" % (size_component.w, size_component.h, pos_component.x, pos_component.y))
+    pass
 
 def MoveSystem(pos_component, move_component):
     print("Moving x: %s y: %s to x: %s y: %s" % (pos_component.x, pos_component.y, move_component.x, pos_component.y))
@@ -139,4 +180,7 @@ def MoveSystem(pos_component, move_component):
     print("Moving x: %s y: %s to x: %s y: %s" % (pos_component.x, pos_component.y, move_component.x, pos_component.y))
 
 if __name__ == "__main__":
-    main()
+    game = Game()
+    game.execute()
+
+

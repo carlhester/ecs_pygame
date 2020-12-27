@@ -40,8 +40,8 @@ class Game:
         self.clock = pygame.time.Clock()
         self._running = True
         self.screen_width = 640
-        self.screen_height = 480
-        self.bg_color = (0,0,0)
+        self.screen_height = 640
+        self.bg_color = (0,100,0)
         self.screen = pygame.display.set_mode((self.screen_width, self.screen_height), 0, 32)
         
         self.CM = ComponentManager()
@@ -49,7 +49,7 @@ class Game:
         
         player = self.entities.add("first")
         self.CM.addSizer(player, SizeComponent(32,32))
-        self.CM.addPositioner(player, PositionComponent(10,10))
+        self.CM.addPositioner(player, PositionComponent(64,64))
         self.CM.addMover(player, MoveComponent(0,0))
         self.CM.addController(player, ControlComponent())
         self.CM.addDrawer(player, DrawComponent())
@@ -62,7 +62,7 @@ class Game:
         while (self._running):
             self.update()
             self.render()
-            self.clock.tick(60)
+            self.clock.tick(30)
         self.cleanup()
 
 
@@ -110,12 +110,16 @@ class Game:
     def render(self):
         pygame.display.flip()
         self.screen.fill(self.bg_color)
+        for x in range(0, self.screen_width, 64):
+            pygame.draw.line(self.screen, (100, 100, 100), (x, 0), (x, self.screen_height))
+        for y in range(0, self.screen_height, 64):
+            pygame.draw.line(self.screen, (100, 100, 100), (0, y), (self.screen_width, y))
 
 class DrawComponent:
     def __init__(self):
-        self.img = pygame.image.load('badguy.png')
+        self.img = pygame.image.load('badguy.png').convert()
         self.img = pygame.transform.scale(self.img, (64,64))
-        self.surface = pygame.Surface((64,64))
+        self.surface = pygame.Surface((64,64), pygame.SRCALPHA)
         self.surface.blit(self.img, (0,0))
         self.rect = self.surface.get_rect()
 
@@ -223,21 +227,21 @@ def ControlSystem(key, move):
     print(key)
     # left right
     if key == "moveright":
-        move.x = 10
+        move.x = 64 
     if key == "moverightstop":
         move.x = 0
     if key == "moveleft":
-        move.x = -10
+        move.x = -64
     if key == "moveleftstop":
         move.x = 0
     
     # up down
     if key == "moveup":
-        move.y = -10
+        move.y = -64
     if key == "moveupstop":
         move.y = 0
     if key == "movedown":
-        move.y = 10
+        move.y = 64
     if key == "movedownstop":
         move.y = 0
 

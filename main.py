@@ -12,7 +12,7 @@ class Game:
         # screen
         self.screen_width = 640
         self.screen_height = 640
-        self.cell_size= 64
+        self.cell_size = 160
         self.cells_wide = (self.screen_width / self.cell_size) - 1
         self.cells_high = (self.screen_height / self.cell_size) - 1
 
@@ -29,14 +29,14 @@ class Game:
         self.CM.addPositioner(player, PositionComponent(1,1))
         self.CM.addController(player, ControlComponent())
         self.CM.addMover(player, MoveComponent(0,0))
-        self.CM.addDrawer(player, DrawComponent('badguy.png'))
+        self.CM.addDrawer(player, DrawComponent('badguy.png', self.cell_size))
         self.CM.addCollider(player, CollideComponent()) 
         
         # wall
         wall = self.entities.add("wall")
         self.CM.addSizer(wall, SizeComponent(self.cell_size, self.cell_size))
         self.CM.addPositioner(wall, PositionComponent(0,0))
-        self.CM.addDrawer(wall, DrawComponent('wall.png'))
+        self.CM.addDrawer(wall, DrawComponent('wall.png', self.cell_size))
         self.CM.addCollider(wall, CollideComponent()) 
         
     def execute(self):
@@ -53,6 +53,7 @@ class Game:
     def update(self):
         key = None
         for event in pygame.event.get():
+            print(event)
             if event.type == pygame.QUIT:
                 self._running = False
             if event.type == pygame.KEYDOWN:
@@ -111,10 +112,10 @@ class Game:
 
 
 class DrawComponent:
-    def __init__(self, filename):
+    def __init__(self, filename, cell_size):
         self.img = pygame.image.load(filename).convert()
-        self.img = pygame.transform.scale(self.img, (64,64))
-        self.surface = pygame.Surface((64,64), pygame.SRCALPHA)
+        self.img = pygame.transform.scale(self.img, (cell_size, cell_size))
+        self.surface = pygame.Surface((cell_size, cell_size), pygame.SRCALPHA)
         self.surface.blit(self.img, (0,0))
         self.rect = self.surface.get_rect()
 
@@ -241,21 +242,21 @@ def ControlSystem(key, move, cell_size):
     # left right
     if key == "moveright":
         move.x = 1 
-    if key == "moverightstop":
+    elif key == "moverightstop":
         move.x = 0
-    if key == "moveleft":
+    elif key == "moveleft":
         move.x = -1
-    if key == "moveleftstop":
+    elif key == "moveleftstop":
         move.x = 0
     
     # up down
     if key == "moveup":
         move.y = -1
-    if key == "moveupstop":
+    elif key == "moveupstop":
         move.y = 0
-    if key == "movedown":
+    elif key == "movedown":
         move.y = 1
-    if key == "movedownstop":
+    elif key == "movedownstop":
         move.y = 0
 
 class Entities:
@@ -299,6 +300,8 @@ def MoveSystem(pos, move, cells_wide, cells_high):
     if pos.y < 0 or pos.y > cells_high:
         pos.y = orig_y
 
+    move.x = 0
+    move.y = 0 
 
 def CollideSystem(pos, move, blockers):
     for b in blockers:

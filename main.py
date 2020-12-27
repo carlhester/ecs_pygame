@@ -47,12 +47,13 @@ class Game:
         self.CM = ComponentManager()
         self.entities = Entities()
         
-        first = self.entities.add("first")
-        self.CM.addSizer(first, SizeComponent(32,32))
-        self.CM.addPositioner(first, PositionComponent(10,10))
-        self.CM.addMover(first, MoveComponent(0,0))
-        self.CM.addController(first, ControlComponent())
-        self.CM.addDrawer(first, DrawComponent())
+        player = self.entities.add("first")
+        self.CM.addSizer(player, SizeComponent(32,32))
+        self.CM.addPositioner(player, PositionComponent(10,10))
+        self.CM.addMover(player, MoveComponent(0,0))
+        self.CM.addController(player, ControlComponent())
+        self.CM.addDrawer(player, DrawComponent())
+
 
     def execute(self):
         if self.init() == False:
@@ -74,14 +75,22 @@ class Game:
                 if event.key == pygame.K_q:
                     self._running = False
                 if event.key == pygame.K_RIGHT:
-                    key = "rightdown"
+                    key = "moveright"
                 if event.key == pygame.K_LEFT:
-                    key = "leftdown"
+                    key = "moveleft"
+                if event.key == pygame.K_UP:
+                    key = "moveup"
+                if event.key == pygame.K_DOWN:
+                    key = "movedown"
             if event.type == pygame.KEYUP:
                 if event.key == pygame.K_RIGHT:
-                    key = "rightup"
+                    key = "moverightstop"
                 if event.key == pygame.K_LEFT:
-                    key = "leftup"
+                    key = "moveleftstop"
+                if event.key == pygame.K_UP:
+                    key = "moveupstop"
+                if event.key == pygame.K_DOWN:
+                    key = "movedownstop"
 
         for e in self.entities.all_ids():
             # control is control
@@ -212,14 +221,25 @@ def DrawSystem(screen, draw, pos, size):
 
 def ControlSystem(key, move):
     print(key)
-    if key == "rightdown":
+    # left right
+    if key == "moveright":
         move.x = 10
-    if key == "rightup":
+    if key == "moverightstop":
         move.x = 0
-    if key == "leftdown":
+    if key == "moveleft":
         move.x = -10
-    if key == "leftup":
+    if key == "moveleftstop":
         move.x = 0
+    
+    # up down
+    if key == "moveup":
+        move.y = -10
+    if key == "moveupstop":
+        move.y = 0
+    if key == "movedown":
+        move.y = 10
+    if key == "movedownstop":
+        move.y = 0
 
 def MoveSystem(pos_component, move_component):
     pos_component.x += move_component.x

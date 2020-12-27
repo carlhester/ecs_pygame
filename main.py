@@ -3,58 +3,42 @@
 import pygame
 from pygame.locals import *
 
-class Entities:
-    def __init__(self):
-        self.counter = 0
-        self.ids = []
-        self.names = [] 
-
-    def add(self, name=""):
-        self.counter += 1
-        self.ids.append(self.counter)
-        self.names.append(name)
-        return self.counter
-    
-    def remove_id(self, id_):
-        pass
-    
-    def remove_name(self, id_):
-        pass
-
-    def all_ids(self):
-        return self.ids
-    
-    def all_names(self):
-        return self.names
-
-    def name(self, id_):
-        return self.names[id_]
-    
-    def id_for_name(self, name):
-        return self.ids.index(name)
-
-
 class Game:
     def init(self):
         pygame.init()
         self.clock = pygame.time.Clock()
         self._running = True
+        
+        # screen
         self.screen_width = 640
         self.screen_height = 640
+        self.cell_size= 64
+        self.cells_wide = (self.screen_width / self.cell_size) - 1
+        self.cells_high = (self.screen_height / self.cell_size) - 1
+
         self.bg_color = (0,100,0)
         self.screen = pygame.display.set_mode((self.screen_width, self.screen_height), 0, 32)
-        
+       
+        # ECS controls
         self.CM = ComponentManager()
         self.entities = Entities()
-        
-        player = self.entities.add("first")
-        self.CM.addSizer(player, SizeComponent(32,32))
-        self.CM.addPositioner(player, PositionComponent(64,64))
-        self.CM.addMover(player, MoveComponent(0,0))
+       
+        # player
+        player = self.entities.add("player")
+        self.CM.addSizer(player, SizeComponent(self.cell_size, self.cell_size))
+        self.CM.addPositioner(player, PositionComponent(1,1))
         self.CM.addController(player, ControlComponent())
-        self.CM.addDrawer(player, DrawComponent())
-
-
+        self.CM.addMover(player, MoveComponent(0,0))
+        self.CM.addDrawer(player, DrawComponent('badguy.png'))
+        self.CM.addCollider(player, CollideComponent()) 
+        
+        # wall
+        wall = self.entities.add("wall")
+        self.CM.addSizer(wall, SizeComponent(self.cell_size, self.cell_size))
+        self.CM.addPositioner(wall, PositionComponent(0,0))
+        self.CM.addDrawer(wall, DrawComponent('wall.png'))
+        self.CM.addCollider(player, CollideComponent()) 
+        
     def execute(self):
         if self.init() == False:
             self._running = False
@@ -95,14 +79,22 @@ class Game:
         for e in self.entities.all_ids():
             # control is control
             if self.CM.hasControl(e) and self.CM.hasMove(e) and key != None:
-                ControlSystem(key, self.CM.getMove(e))
+                ControlSystem(key, self.CM.getMove(e), self.cell_size)
                 key = None
+            # collision
+            if self.CM.hasCollide(e) and self.CM.hasPosition(e) and self.CM.hasMove(e):
+                for c in self.entities.all_ids():
+                    if self.CM.hasPosition(c) and self.CM.hasCollide(c):
+                        blocked = CollideSystem(self.CM.getPosition(e), self.CM.getMove(e), self.CM.getPosition(c))
+                        if blocked: 
+                            self.CM.getMove(e).x = 0
+                            self.CM.getMove(e).y = 0
             # move is position + move
             if self.CM.hasMove(e) and self.CM.hasPosition(e):
-                MoveSystem(self.CM.getPosition(e), self.CM.getMove(e))
+                MoveSystem(self.CM.getPosition(e), self.CM.getMove(e), self.cells_high, self.cells_wide)
             # draw is size + position + draw
             if self.CM.hasSize(e) and self.CM.hasPosition(e) and self.CM.hasDraw(e):
-                DrawSystem(self.screen, self.CM.getDraw(e), self.CM.getPosition(e), self.CM.getSize(e))
+                DrawSystem(self.screen, self.cell_size, self.CM.getDraw(e), self.CM.getPosition(e), self.CM.getSize(e))
 
     def cleanup(self):
         pygame.quit()
@@ -110,20 +102,26 @@ class Game:
     def render(self):
         pygame.display.flip()
         self.screen.fill(self.bg_color)
-        for x in range(0, self.screen_width, 64):
+        for x in range(0, self.screen_width, self.cell_size):
             pygame.draw.line(self.screen, (100, 100, 100), (x, 0), (x, self.screen_height))
-        for y in range(0, self.screen_height, 64):
+        for y in range(0, self.screen_height, self.cell_size):
             pygame.draw.line(self.screen, (100, 100, 100), (0, y), (self.screen_width, y))
 
+
+
 class DrawComponent:
-    def __init__(self):
-        self.img = pygame.image.load('badguy.png').convert()
+    def __init__(self, filename):
+        self.img = pygame.image.load(filename).convert()
         self.img = pygame.transform.scale(self.img, (64,64))
         self.surface = pygame.Surface((64,64), pygame.SRCALPHA)
         self.surface.blit(self.img, (0,0))
         self.rect = self.surface.get_rect()
 
 class ControlComponent:
+    def __init__(self):
+        pass
+
+class CollideComponent:
     def __init__(self):
         pass
 
@@ -148,6 +146,7 @@ class ComponentManager:
         self.Drawers = {}
         self.Movers = {}
         self.Controllers = {}
+        self.Colliders = {}
         self.Positioners = {}
     
     # Control
@@ -191,6 +190,20 @@ class ComponentManager:
     
     def getDraw(self, entity_id):
         return self.Drawers[entity_id]
+    
+    # Colliders 
+    def addCollider(self, entity_id, collide_component):
+        self.Colliders[entity_id] = collide_component 
+    
+    def removeCollider(self, entity_id):
+        del self.Colliders[entity_id]
+    
+    def hasCollide(self, entity_id):
+        if entity_id in self.Colliders:
+            return True
+    
+    def getCollide(self, entity_id):
+        return self.Colliders[entity_id]
 
     # Move 
     def addMover(self, entity_id, move_component):
@@ -220,37 +233,81 @@ class ComponentManager:
     def getPosition(self, entity_id):
         return self.Positioners[entity_id]
     
-def DrawSystem(screen, draw, pos, size):
-    screen.blit(draw.surface, (pos.x, pos.y, size.w, size.h))
+def DrawSystem(screen, cell_size, draw, pos, size):
+    screen.blit(draw.surface, (pos.x * cell_size, pos.y * cell_size, size.w * cell_size, size.h * cell_size))
 
-def ControlSystem(key, move):
-    print(key)
+def ControlSystem(key, move, cell_size):
     # left right
     if key == "moveright":
-        move.x = 64 
+        move.x = 1 
     if key == "moverightstop":
         move.x = 0
     if key == "moveleft":
-        move.x = -64
+        move.x = -1
     if key == "moveleftstop":
         move.x = 0
     
     # up down
     if key == "moveup":
-        move.y = -64
+        move.y = -1
     if key == "moveupstop":
         move.y = 0
     if key == "movedown":
-        move.y = 64
+        move.y = 1
     if key == "movedownstop":
         move.y = 0
 
-def MoveSystem(pos_component, move_component):
-    pos_component.x += move_component.x
-    pos_component.y += move_component.y
+class Entities:
+    def __init__(self):
+        self.counter = 0
+        self.ids = []
+        self.names = [] 
+
+    def add(self, name=""):
+        self.counter += 1
+        self.ids.append(self.counter)
+        self.names.append(name)
+        return self.counter
+    
+    def remove_id(self, id_):
+        pass
+    
+    def remove_name(self, id_):
+        pass
+
+    def all_ids(self):
+        return self.ids
+    
+    def all_names(self):
+        return self.names
+
+    def name(self, id_):
+        return self.names[id_]
+    
+    def id_for_name(self, name):
+        return self.ids.index(name)
+
+def MoveSystem(pos, move, cells_wide, cells_high):
+    print(pos.x, pos.y)
+    orig_x = pos.x
+    pos.x += move.x
+    if pos.x < 0 or pos.x > cells_wide:
+        pos.x = orig_x
+    
+    orig_y = pos.y
+    pos.y += move.y
+    if pos.y < 0 or pos.y > cells_high:
+        pos.y = orig_y
+
+
+def CollideSystem(pos, move, target):
+    if pos.x + move.x == target.x and pos.y + move.y == target.y: 
+        return True
 
 if __name__ == "__main__":
     game = Game()
     game.execute()
+
+
 
 

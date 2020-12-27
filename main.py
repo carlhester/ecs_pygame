@@ -37,68 +37,87 @@ class Entities:
 class Game:
     def init(self):
         pygame.init()
+        self.clock = pygame.time.Clock()
         self._running = True
+        self.screen_width = 640
+        self.screen_height = 480
+        self.bg_color = (0,0,0)
+        self.screen = pygame.display.set_mode((self.screen_width, self.screen_height), 0, 32)
+        
         self.CM = ComponentManager()
         self.entities = Entities()
         
         first = self.entities.add("first")
-        self.CM.addSizer(first, SizeComponent(10,10))
-       
-        second = self.entities.add()
-        self.CM.addSizer(second, SizeComponent(30,30))
-        self.CM.addPositioner(second, PositionComponent(120,230))
-        self.CM.addDrawer(second, DrawComponent())
-        
-        third = self.entities.add()
-        self.CM.addPositioner(third, PositionComponent(240,110))
-        self.CM.addMover(third, MoveComponent(15,5))
-
-        fourth = self.entities.add("fourth")
-        self.CM.addPositioner(fourth, PositionComponent(240,110))
-        self.CM.addDrawer(fourth, DrawComponent())
+        self.CM.addSizer(first, SizeComponent(32,32))
+        self.CM.addPositioner(first, PositionComponent(10,10))
+        self.CM.addMover(first, MoveComponent(0,0))
+        self.CM.addController(first, ControlComponent())
+        self.CM.addDrawer(first, DrawComponent())
 
     def execute(self):
         if self.init() == False:
             self._running = False
 
         while (self._running):
-            for event in pygame.event.get():
-                self.events(event)
             self.update()
             self.render()
+            self.clock.tick(60)
         self.cleanup()
 
 
     def update(self):
+        key = None
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self._running = False
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_q:
+                    self._running = False
+                if event.key == pygame.K_RIGHT:
+                    key = "rightdown"
+                if event.key == pygame.K_LEFT:
+                    key = "leftdown"
+            if event.type == pygame.KEYUP:
+                if event.key == pygame.K_RIGHT:
+                    key = "rightup"
+                if event.key == pygame.K_LEFT:
+                    key = "leftup"
+
         for e in self.entities.all_ids():
-            # draw is size + position + draw
-            if self.CM.hasSize(e) and self.CM.hasPosition(e) and self.CM.hasDraw(e):
-                DrawSystem(self.CM.getSize(e), self.CM.getPosition(e))
+            # control is control
+            if self.CM.hasControl(e) and self.CM.hasMove(e) and key != None:
+                ControlSystem(key, self.CM.getMove(e))
+                key = None
             # move is position + move
             if self.CM.hasMove(e) and self.CM.hasPosition(e):
                 MoveSystem(self.CM.getPosition(e), self.CM.getMove(e))
-
-    def events(self, event):
-        if event.type == pygame.KEYDOWN:
-            print(event.type, event.key)
-            if event.key == pygame.K_q:
-                self._running = False
-        if event.type == pygame.QUIT:
-            self._running = False
+            # draw is size + position + draw
+            if self.CM.hasSize(e) and self.CM.hasPosition(e) and self.CM.hasDraw(e):
+                DrawSystem(self.screen, self.CM.getDraw(e), self.CM.getPosition(e), self.CM.getSize(e))
 
     def cleanup(self):
         pygame.quit()
 
     def render(self):
-        pass
+        pygame.display.flip()
+        self.screen.fill(self.bg_color)
+
 class DrawComponent:
+    def __init__(self):
+        self.img = pygame.image.load('badguy.png')
+        self.img = pygame.transform.scale(self.img, (64,64))
+        self.surface = pygame.Surface((64,64))
+        self.surface.blit(self.img, (0,0))
+        self.rect = self.surface.get_rect()
+
+class ControlComponent:
     def __init__(self):
         pass
 
 class SizeComponent:
     def __init__(self, w, h):
         self.w = w
-        self.h = h 
+        self.h = h
 
 class PositionComponent:
     def __init__(self, x, y):
@@ -115,7 +134,22 @@ class ComponentManager:
         self.Sizers = {}
         self.Drawers = {}
         self.Movers = {}
+        self.Controllers = {}
         self.Positioners = {}
+    
+    # Control
+    def addController(self, entity_id, control_component):
+        self.Controllers[entity_id] = control_component
+
+    def removeController(self, entity_id):
+        del self.Controllers[entity_id]
+    
+    def hasControl(self, entity_id):
+        if entity_id in self.Controllers:
+            return True
+    
+    def getControl(self, entity_id):
+        return self.Controllers[entity_id]
     
     # Size
     def addSizer(self, entity_id, size_component):
@@ -141,6 +175,10 @@ class ComponentManager:
     def hasDraw(self, entity_id):
         if entity_id in self.Drawers:
             return True
+    
+    def getDraw(self, entity_id):
+        return self.Drawers[entity_id]
+
     # Move 
     def addMover(self, entity_id, move_component):
         self.Movers[entity_id] = move_component 
@@ -169,15 +207,23 @@ class ComponentManager:
     def getPosition(self, entity_id):
         return self.Positioners[entity_id]
     
-def DrawSystem(size_component, pos_component):
-    #print("Drawing w: %s h: %s at x: %s y: %s" % (size_component.w, size_component.h, pos_component.x, pos_component.y))
-    pass
+def DrawSystem(screen, draw, pos, size):
+    screen.blit(draw.surface, (pos.x, pos.y, size.w, size.h))
+
+def ControlSystem(key, move):
+    print(key)
+    if key == "rightdown":
+        move.x = 10
+    if key == "rightup":
+        move.x = 0
+    if key == "leftdown":
+        move.x = -10
+    if key == "leftup":
+        move.x = 0
 
 def MoveSystem(pos_component, move_component):
-    print("Moving x: %s y: %s to x: %s y: %s" % (pos_component.x, pos_component.y, move_component.x, pos_component.y))
     pos_component.x += move_component.x
     pos_component.y += move_component.y
-    print("Moving x: %s y: %s to x: %s y: %s" % (pos_component.x, pos_component.y, move_component.x, pos_component.y))
 
 if __name__ == "__main__":
     game = Game()

@@ -37,7 +37,7 @@ class Game:
         self.CM.addSizer(wall, SizeComponent(self.cell_size, self.cell_size))
         self.CM.addPositioner(wall, PositionComponent(0,0))
         self.CM.addDrawer(wall, DrawComponent('wall.png'))
-        self.CM.addCollider(player, CollideComponent()) 
+        self.CM.addCollider(wall, CollideComponent()) 
         
     def execute(self):
         if self.init() == False:
@@ -77,22 +77,23 @@ class Game:
                     key = "movedownstop"
 
         for e in self.entities.all_ids():
-            # control is control
+            # control
             if self.CM.hasControl(e) and self.CM.hasMove(e) and key != None:
                 ControlSystem(key, self.CM.getMove(e), self.cell_size)
                 key = None
+            
             # collision
             if self.CM.hasCollide(e) and self.CM.hasPosition(e) and self.CM.hasMove(e):
-                for c in self.entities.all_ids():
-                    if self.CM.hasPosition(c) and self.CM.hasCollide(c):
-                        blocked = CollideSystem(self.CM.getPosition(e), self.CM.getMove(e), self.CM.getPosition(c))
-                        if blocked: 
-                            self.CM.getMove(e).x = 0
-                            self.CM.getMove(e).y = 0
-            # move is position + move
+                blockers = []
+                for c in self.CM.Colliders:
+                    blockers.append(self.CM.getPosition(c))
+                CollideSystem(self.CM.getPosition(e), self.CM.getMove(e), blockers)
+           
+           # move
             if self.CM.hasMove(e) and self.CM.hasPosition(e):
                 MoveSystem(self.CM.getPosition(e), self.CM.getMove(e), self.cells_high, self.cells_wide)
-            # draw is size + position + draw
+          
+          # draw 
             if self.CM.hasSize(e) and self.CM.hasPosition(e) and self.CM.hasDraw(e):
                 DrawSystem(self.screen, self.cell_size, self.CM.getDraw(e), self.CM.getPosition(e), self.CM.getSize(e))
 
@@ -288,7 +289,6 @@ class Entities:
         return self.ids.index(name)
 
 def MoveSystem(pos, move, cells_wide, cells_high):
-    print(pos.x, pos.y)
     orig_x = pos.x
     pos.x += move.x
     if pos.x < 0 or pos.x > cells_wide:
@@ -300,9 +300,11 @@ def MoveSystem(pos, move, cells_wide, cells_high):
         pos.y = orig_y
 
 
-def CollideSystem(pos, move, target):
-    if pos.x + move.x == target.x and pos.y + move.y == target.y: 
-        return True
+def CollideSystem(pos, move, blockers):
+    for b in blockers:
+        if pos.x + move.x == b.x and pos.y + move.y == b.y: 
+            move.x = 0 
+            move.y = 0 
 
 if __name__ == "__main__":
     game = Game()

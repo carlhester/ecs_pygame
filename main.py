@@ -59,8 +59,9 @@ class Game:
 
 
     def update(self):
-        txt = self.CM.getPosition(1)
-        self.message.update("(" + str(txt.x) + "," + str(txt.y) + ")")
+        # debug coordinates 
+        self.message.update("(" + str(self.CM.getPosition(1).x) + "," + str(self.CM.getPosition(1).y) + ")")
+        
         key = None
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -76,15 +77,6 @@ class Game:
                     key = "moveup"
                 if event.key == pygame.K_DOWN:
                     key = "movedown"
-            if event.type == pygame.KEYUP:
-                if event.key == pygame.K_RIGHT:
-                    key = "moverightstop"
-                if event.key == pygame.K_LEFT:
-                    key = "moveleftstop"
-                if event.key == pygame.K_UP:
-                    key = "moveupstop"
-                if event.key == pygame.K_DOWN:
-                    key = "movedownstop"
 
         for e in self.entities.all_ids():
             # control
@@ -251,22 +243,14 @@ def ControlSystem(key, move, cell_size):
     # left right
     if key == "moveright":
         move.x = 1 
-    elif key == "moverightstop":
-        move.x = 0
     elif key == "moveleft":
         move.x = -1
-    elif key == "moveleftstop":
-        move.x = 0
     
     # up down
     if key == "moveup":
         move.y = -1
-    elif key == "moveupstop":
-        move.y = 0
     elif key == "movedown":
         move.y = 1
-    elif key == "movedownstop":
-        move.y = 0
 
 class Entities:
     def __init__(self):

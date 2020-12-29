@@ -73,7 +73,7 @@ class Game:
     def update(self):
         # debug coordinates 
         p = self.entities.id_for_name("player")
-        self.message.update("(" + str(self.CM.getPosition(p).x) + "," + str(self.CM.getPosition(p).y) + ")")
+        self.message.update("(" + str(self.CM.getPosition(p).x) + "," + str(self.CM.getPosition(p).y) + ") - " + str(self.CM.getMove(p).direction))
         
         key = None
         for event in pygame.event.get():
@@ -165,6 +165,7 @@ class MoveComponent:
     def __init__(self, x, y):
         self.x = x
         self.y = y
+        self.direction = None
 
 class ComponentManager:
     def __init__(self):
@@ -337,16 +338,25 @@ class Entities:
         return self.names.index(name)
 
 def MoveSystem(pos, move, cells_wide, cells_high):
+    # get direction of move
+    if move.x > 0: move.direction = "r"
+    if move.x < 0: move.direction = "l"
+    if move.y > 0: move.direction = "d"
+    if move.y < 0: move.direction = "u"
+   
+    # store previous values
     orig_x = pos.x
+    orig_y = pos.y
+    
     pos.x += move.x
     if pos.x < 0 or pos.x > cells_wide+1:
         pos.x = orig_x
     
-    orig_y = pos.y
     pos.y += move.y
     if pos.y < 0 or pos.y > cells_high+1:
         pos.y = orig_y
-
+    
+    # unset move before ending
     move.x = 0
     move.y = 0 
 

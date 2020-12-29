@@ -13,7 +13,11 @@ class Game:
         self.screen_width = 800
         self.screen_height = 600
         self.cell_size = 50
-        self.cells_wide = int(self.screen_width / self.cell_size)
+        self.field_size = int((.75 * self.screen_width) / self.cell_size)
+        self.field_width = int(.75 * self.screen_width)
+        self.hud_size = int((.25 * self.screen_width) / self.cell_size)
+        self.hud_width = int(.25 * self.screen_width)
+        self.cells_wide = int(self.screen_width / self.cell_size) - self.hud_size
         self.cells_high = int(self.screen_height / self.cell_size)
 
         self.bg_color = (0,100,0)
@@ -21,12 +25,12 @@ class Game:
        
         self.CM = ComponentManager()
         self.entities = Entities()
-        self.message = Message(self.screen_width, self.screen_height, self.screen)
+        self.message = Message(self.screen, self.field_width)
        
         # player
         player = self.entities.add("player")
         self.CM.addSizer(player, SizeComponent(self.cell_size, self.cell_size))
-        self.CM.addPositioner(player, PositionComponent((1,1)))
+        self.CM.addPositioner(player, PositionComponent((5,5)))
         self.CM.addController(player, ControlComponent())
         self.CM.addMover(player, MoveComponent(0,0))
         self.CM.addDrawer(player, DrawComponent('badguy.png', self.cell_size))
@@ -45,7 +49,7 @@ class Game:
             self.CM.addSizer(wall, SizeComponent(self.cell_size, self.cell_size))
             self.CM.addPositioner(wall, PositionComponent(w))
             self.CM.addDrawer(wall, DrawComponent('wall.png', self.cell_size))
-            self.CM.addCollider(wall, CollideComponent()) 
+            self.CM.addBlocker(wall, BlockComponent()) 
         
     def execute(self):
         if self.init() == False:
@@ -60,7 +64,8 @@ class Game:
 
     def update(self):
         # debug coordinates 
-        self.message.update("(" + str(self.CM.getPosition(1).x) + "," + str(self.CM.getPosition(1).y) + ")")
+        p = self.entities.id_for_name("player")
+        self.message.update("(" + str(self.CM.getPosition(p).x) + "," + str(self.CM.getPosition(p).y) + ")")
         
         key = None
         for event in pygame.event.get():
@@ -87,9 +92,9 @@ class Game:
             # collision
             if self.CM.hasPosition(e) and self.CM.hasMove(e):
                 blockers = []
-                for c in self.CM.Colliders:
+                for c in self.CM.Blockers:
                     blockers.append(self.CM.getPosition(c))
-                CollideSystem(self.CM.getPosition(e), self.CM.getMove(e), blockers)
+                BlockSystem(self.CM.getPosition(e), self.CM.getMove(e), blockers)
            
            # move
             if self.CM.hasMove(e) and self.CM.hasPosition(e):
@@ -103,6 +108,7 @@ class Game:
         pygame.quit()
 
     def render(self):
+        pygame.draw.rect(self.screen, (0, 0, 0), (self.field_width, 0, self.hud_width, self.screen_height))
         self.message.draw()
         pygame.display.flip()
         self.screen.fill(self.bg_color)
@@ -110,6 +116,7 @@ class Game:
             pygame.draw.line(self.screen, (100, 100, 100), (x, 0), (x, self.screen_height))
         for y in range(0, self.screen_height, self.cell_size):
             pygame.draw.line(self.screen, (100, 100, 100), (0, y), (self.screen_width, y))
+        
 
 
 class DrawComponent:
@@ -124,7 +131,7 @@ class ControlComponent:
     def __init__(self):
         pass
 
-class CollideComponent:
+class BlockComponent:
     def __init__(self):
         pass
 
@@ -149,7 +156,7 @@ class ComponentManager:
         self.Drawers = {}
         self.Movers = {}
         self.Controllers = {}
-        self.Colliders = {}
+        self.Blockers = {}
         self.Positioners = {}
     
     # Control
@@ -194,19 +201,19 @@ class ComponentManager:
     def getDraw(self, entity_id):
         return self.Drawers[entity_id]
     
-    # Colliders 
-    def addCollider(self, entity_id, collide_component):
-        self.Colliders[entity_id] = collide_component 
+    # Blockers 
+    def addBlocker(self, entity_id, collide_component):
+        self.Blockers[entity_id] = collide_component 
     
-    def removeCollider(self, entity_id):
-        del self.Colliders[entity_id]
+    def removeBlocker(self, entity_id):
+        del self.Blockers[entity_id]
     
-    def hasCollide(self, entity_id):
-        if entity_id in self.Colliders:
+    def hasBlock(self, entity_id):
+        if entity_id in self.Blockers:
             return True
     
-    def getCollide(self, entity_id):
-        return self.Colliders[entity_id]
+    def getBlock(self, entity_id):
+        return self.Blockers[entity_id]
 
     # Move 
     def addMover(self, entity_id, move_component):
@@ -259,10 +266,11 @@ class Entities:
         self.names = [] 
 
     def add(self, name=""):
-        self.counter += 1
-        self.ids.append(self.counter)
+        current = self.counter 
+        self.ids.append(current)
         self.names.append(name)
-        return self.counter
+        self.counter += 1
+        return current
     
     def remove_id(self, id_):
         pass
@@ -280,7 +288,7 @@ class Entities:
         return self.names[id_]
     
     def id_for_name(self, name):
-        return self.ids.index(name)
+        return self.names.index(name)
 
 def MoveSystem(pos, move, cells_wide, cells_high):
     orig_x = pos.x
@@ -296,19 +304,18 @@ def MoveSystem(pos, move, cells_wide, cells_high):
     move.x = 0
     move.y = 0 
 
-def CollideSystem(pos, move, blockers):
+# Block System is for immovable objects
+def BlockSystem(pos, move, blockers):
     for b in blockers:
         if pos.x + move.x == b.x and pos.y + move.y == b.y: 
-            print("({:d}, {:d})".format(b.x, b.y))
-            print("blocked!")
+            print("blocked! ({:d}, {:d})".format(b.x, b.y)) 
             move.x = 0 
             move.y = 0 
 
 class Message():
-    def __init__(self, screen_width, screen_height, surface):
+    def __init__(self, surface, field_width):
         self.text = ""
-        self.screen_width = screen_width
-        self.screen_height= screen_height
+        self.field_width = field_width
         self.surface = surface
         self.font = pygame.font.SysFont(None, 32, 0, 1)
 
@@ -317,25 +324,16 @@ class Message():
         
     def draw(self):
         if self.text != "":
-            left = 0
-            top = 0
-            textlength = len(self.text)
             text = self.font.render(self.text, False, (255, 255, 255), (0,0,0))
             textrect = text.get_rect()
-            textrect.x = 0
-            textrect.y = 0
+            textrect.x = self.field_width + 10
+            textrect.y = 10
             self.surface.blit(text, textrect)
     
     def clear(self):
         self.text = ""
 
-
-
-
 if __name__ == "__main__":
     game = Game()
     game.execute()
-
-
-
 

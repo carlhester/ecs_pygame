@@ -32,6 +32,7 @@ class Game:
         self.CM.addSizer(player, SizeComponent(self.cell_size, self.cell_size))
         self.CM.addPositioner(player, PositionComponent((5,5)))
         self.CM.addController(player, ControlComponent())
+        self.CM.addHealther(player, HealthComponent(10))
         self.CM.addMover(player, MoveComponent(0,0))
         self.CM.addDrawer(player, DrawComponent('badguy.png', self.cell_size))
      
@@ -50,6 +51,13 @@ class Game:
             self.CM.addPositioner(wall, PositionComponent(w))
             self.CM.addDrawer(wall, DrawComponent('wall.png', self.cell_size))
             self.CM.addBlocker(wall, BlockComponent()) 
+
+        push = self.entities.add("push")
+        self.CM.addSizer(push, SizeComponent(self.cell_size, self.cell_size))
+        self.CM.addPositioner(push, PositionComponent((3,3)))
+        self.CM.addDrawer(push, DrawComponent('wall.png', self.cell_size))
+        self.CM.addPusher(push, PushComponent())
+
         
     def execute(self):
         if self.init() == False:
@@ -131,7 +139,15 @@ class ControlComponent:
     def __init__(self):
         pass
 
+class HealthComponent:
+    def __init__(self, hp):
+        self.hp = hp
+
 class BlockComponent:
+    def __init__(self):
+        pass
+
+class PushComponent:
     def __init__(self):
         pass
 
@@ -158,6 +174,8 @@ class ComponentManager:
         self.Controllers = {}
         self.Blockers = {}
         self.Positioners = {}
+        self.Pushers = {}
+        self.Healthers = {}
     
     # Control
     def addController(self, entity_id, control_component):
@@ -201,9 +219,23 @@ class ComponentManager:
     def getDraw(self, entity_id):
         return self.Drawers[entity_id]
     
-    # Blockers 
-    def addBlocker(self, entity_id, collide_component):
-        self.Blockers[entity_id] = collide_component 
+    # Push
+    def addPusher(self, entity_id, draw_component):
+        self.Pushers[entity_id] = draw_component 
+    
+    def removePusher(self, entity_id):
+        del self.Pushers[entity_id]
+    
+    def hasPush(self, entity_id):
+        if entity_id in self.Pushers:
+            return True
+    
+    def getPush(self, entity_id):
+        return self.Pushers[entity_id]
+   
+   # Blockers 
+    def addBlocker(self, entity_id, block_component):
+        self.Blockers[entity_id] = block_component 
     
     def removeBlocker(self, entity_id):
         del self.Blockers[entity_id]
@@ -242,6 +274,20 @@ class ComponentManager:
     
     def getPosition(self, entity_id):
         return self.Positioners[entity_id]
+    
+    # Health
+    def addHealther(self, entity_id, health_component):
+        self.Healthers[entity_id] = health_component
+
+    def removeHealther(self, entity_id):
+        del self.Healthers[entity_id]
+    
+    def hasHealth(self, entity_id):
+        if entity_id in self.Healthers:
+            return True
+    
+    def getHealth(self, entity_id):
+        return self.Healthers[entity_id]
     
 def DrawSystem(screen, cell_size, draw, pos, size):
     screen.blit(draw.surface, (pos.x * cell_size, pos.y * cell_size, size.w * cell_size, size.h * cell_size))
